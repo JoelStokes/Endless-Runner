@@ -2,12 +2,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+//Player Controller designed for non-gravity world. 
+//Wanting exact precision over variable jumps & falls with no other physics to worry about makes this style work
 public class PlayerController : MonoBehaviour
 {
     private Rigidbody2D rigi;
 
     private bool slamming = false;
     private bool jumping = false;
+    private bool grounded = false;
+    private bool walled = false;
 
     private float distToGround;
 
@@ -17,10 +21,10 @@ public class PlayerController : MonoBehaviour
     private float jumpHoldTimer = .4f;
 
     private float jumpPower = 100;
-    private float jumpSubtractHeld = -10f;
-    private float jumpSubtractRelease = -20f;
-    private float maxFall = -20;
-    private float slamSpeed = -50f;
+    private float jumpSubtractHeld = -1500f;
+    private float jumpSubtractRelease = -2000f;
+    private float maxFall = -1000;
+    private float slamSpeed = -5000f;
 
     private float forwardSpeed = 5f;
     private float forwardInc = .05f;   //Speed to add every point increase
@@ -40,34 +44,47 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (!slamming && !AgainstWall()){
+        grounded = IsGrounded();
+        walled = AgainstWall();
+
+        if (!slamming && !walled)   //Add constant Horizontal Movement
+        {
             transform.position = new Vector3(
                 transform.position.x + ((forwardSpeed + (forwardInc * score)) * Time.deltaTime), transform.position.y, transform.position.z);
         }
 
-        if (slamming && IsGrounded()){
+        if (slamming && grounded)
+        {
             slamming = false;
         }
 
         if (Input.GetMouseButtonDown(0))
         {
-            if (IsGrounded())   //Start jump off ground
+            if (grounded)   //Start jump off ground
             {
                 rigi.AddForce(Vector2.up * jumpPower);
-            } else if (jumping) //Hold jump to get higher
+            }
+            else if (jumping) //Hold jump to get higher
             {
                 rigi.AddForce(Vector2.up * (jumpSubtractHeld * Time.deltaTime));
-            } else if (!slamming)   //Slam down from the air. Prevent multi-slam from multi-clicks
+            }
+            else if (!slamming)   //Slam down from the air. Prevent multi-slam from multi-clicks
             {
                 rigi.AddForce(Vector2.up * (slamSpeed * Time.deltaTime));
                 slamming = true;
             }
-        } else
+        }
+        else
         {
-            if (!IsGrounded())  //Subtract from jump until maxFall speed
+            if (!grounded && !slamming)  //Subtract from jump until maxFall speed
             {
                 rigi.AddForce(Vector2.up * (jumpSubtractRelease * Time.deltaTime));
             }
+        }
+
+        if (transform.position.y < -30) //Safety Check in case player drops below death plane to prevent softlock
+        {
+            Die();
         }
     }
 
